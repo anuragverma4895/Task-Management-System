@@ -27,6 +27,6 @@ Backend configuration discovers the root `.env` and validates runtime values. Vi
 - Production must use HTTPS, a strong unique server secret, and the exact frontend origin in CORS.
 
 ## MVP scope and remaining work
-Working now: signup, login, current-user lookup, logout, persistent per-user task CRUD, search/filter, status/priority/due date fields, and CSV export.
+Working now: signup, login, current-user lookup, logout, persistent per-user task CRUD, search/filter, status/priority/due date fields, CSV export, due-date agenda, and per-user task activity history.
 
-Not implemented yet: shared workspaces, invitation/role management, projects CRUD, calendar UI, activity history, email verification/password recovery, attachments, reminders, notification delivery, and authenticated Socket.IO collaboration. Do not treat these as production features until implemented and tested.
+Not implemented yet: shared workspaces, invitation/role management, projects CRUD, email verification/password recovery, attachments, scheduled reminders, notification delivery, and authenticated Socket.IO collaboration. The calendar agenda is derived from task due dates. Do not treat these as production features until implemented and tested.
