@@ -7,7 +7,7 @@ Local base URL: `http://localhost:5000/api`.
 Returns service status and timestamp at `/api/health`.
 
 ## Planned task API
-The task controller and route module define these paths but are not mounted into the public API router in this foundation commit. Requests currently receive a generic 501 response until integration is completed.
+Task controller and route modules define these paths but they are not mounted into the public API router in this foundation commit. Requests currently receive a generic 501 response until integration is completed.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -27,6 +27,6 @@ The task controller and route module define these paths but are not mounted into
 - `sort`: `title`, `createdAt`, `updatedAt`, `dueDate`, `priority`, or `status`.
 - `order`: `asc` or `desc`.
 
-List responses use `{ data, page, limit, total, pages }`; single task responses use `{ data }`. Validation errors use HTTP 400. Requests without an authenticated identity return HTTP 401.
+List responses use `{ data, page, limit, total, pages }`; single-task responses use `{ data }`. Validation errors use HTTP 400. Requests without an authenticated identity return HTTP 401.
 
 Never let the browser provide ownership fields. The server must derive ownership from an authenticated session. Add OpenAPI/Swagger after routes and authentication are connected.
