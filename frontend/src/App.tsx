@@ -6,7 +6,7 @@ import { Activity, ArrowDownUp, Bell, CalendarDays, Check, CheckCheck, ChevronDo
 
 type Status = "To do" | "In progress" | "In review" | "Completed";
 type Priority = "Urgent" | "High" | "Medium" | "Low";
-type Task = { id: string; title: string; description: string; dueDate: string | null; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
+type Task = { id: string; title: string; description: string; labels: string[]; dueDate: string | null; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
 const navItems = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "My tasks", icon: ListTodo },
@@ -38,7 +38,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
   const [notice, setNotice] = useState("");
 
   const visibleTasks = useMemo(() => tasks.filter(task => {
-    const matchesQuery = [task.title, task.description, task.project, task.tag].join(" ").toLowerCase().includes(query.toLowerCase());
+    const matchesQuery = [task.title, task.description, task.project, task.tag, task.labels.join(" ")].join(" ").toLowerCase().includes(query.toLowerCase());
     const matchesFilter = filter === "All tasks" || task.status === filter;
     const matchesNav = true;
     return matchesQuery && matchesFilter && matchesNav;
@@ -90,7 +90,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     setEditingTaskId(task.id);
     setNewTitle(task.title);
     setNewDescription(task.description);
-    setNewLabels(task.tag === "General" ? "" : task.tag);
+    setNewLabels(task.labels.join(", "));
     setNewPriority(task.priority);
     setNewDue(task.dueDate ? dateInputValue(new Date(task.dueDate)) : "");
     setShowCreate(true);
@@ -209,7 +209,7 @@ function toDashboardTask(task: TaskRecord, userName: string): Task {
     const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     due = sameDay(date, today) ? "Today" : sameDay(date, tomorrow) ? "Tomorrow" : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  return { id: task._id, title: task.title, description: task.description ?? "", dueDate: task.dueDate ?? null, project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: initials(userName), checked: task.status === "completed" };
+  return { id: task._id, title: task.title, description: task.description ?? "", labels: task.labels ?? [], dueDate: task.dueDate ?? null, project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: initials(userName), checked: task.status === "completed" };
 }
 
 export default function App() {
