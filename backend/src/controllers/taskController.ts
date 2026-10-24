@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Task } from "../models/Task.js";
+import { Activity } from "../models/Activity.js";
 import { createTaskSchema, taskQuerySchema, updateTaskSchema } from "../validators/task.js";
 
 type AuthenticatedRequest = Request & { user?: { id: string } };
@@ -34,6 +35,7 @@ export async function createTask(req: AuthenticatedRequest, res: Response) {
   const parsed = createTaskSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid task data.", issues: parsed.error.issues });
   const task = await Task.create({ ...parsed.data, creator: new mongoose.Types.ObjectId(owner) });
+  await Activity.create({ user: owner, task: task._id, action: "created", taskTitle: task.title, summary: "Created task" });
   return res.status(201).json({ data: task });
 }
 export async function getTask(req: AuthenticatedRequest, res: Response) {
@@ -55,6 +57,9 @@ export async function updateTask(req: AuthenticatedRequest, res: Response) {
   if (updates.status && updates.status !== "completed") updates.completedAt = null;
   const task = await Task.findOneAndUpdate({ _id: req.params.id, creator: owner }, { $set: updates }, { new: true, runValidators: true });
   if (!task) return res.status(404).json({ message: "Task not found." });
+  const action = parsed.data.status === "completed" ? "completed" : parsed.data.status ? "status_changed" : "updated";
+  const summary = action === "completed" ? "Completed task" : action === "status_changed" ? "Changed task status" : "Updated task details";
+  await Activity.create({ user: owner, task: task._id, action, taskTitle: task.title, summary });
   return res.json({ data: task });
 }
 export async function deleteTask(req: AuthenticatedRequest, res: Response) {
@@ -63,6 +68,7 @@ export async function deleteTask(req: AuthenticatedRequest, res: Response) {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid task ID." });
   const task = await Task.findOneAndDelete({ _id: req.params.id, creator: owner });
   if (!task) return res.status(404).json({ message: "Task not found." });
+  await Activity.create({ user: owner, task: task._id, action: "deleted", taskTitle: task.title, summary: "Deleted task" });
   return res.status(204).send();
 }
 function escapeRegex(value: string): string {
