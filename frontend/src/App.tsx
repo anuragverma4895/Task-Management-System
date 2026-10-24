@@ -9,7 +9,7 @@ type Priority = "Urgent" | "High" | "Medium" | "Low";
 type Task = { id: string; title: string; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
 const navItems = [
   { label: "Overview", icon: LayoutDashboard },
-  { label: "My tasks", icon: ListTodo, count: "8" },
+  { label: "My tasks", icon: ListTodo },
   { label: "Calendar", icon: CalendarDays },
   { label: "Activity", icon: Activity }
 ];
@@ -37,9 +37,9 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
   const visibleTasks = useMemo(() => tasks.filter(task => {
     const matchesQuery = [task.title, task.project, task.tag].join(" ").toLowerCase().includes(query.toLowerCase());
     const matchesFilter = filter === "All tasks" || task.status === filter;
-    const matchesNav = activeNav !== "My tasks" || task.assignee === initials(user.name);
+    const matchesNav = true;
     return matchesQuery && matchesFilter && matchesNav;
-  }), [tasks, query, filter, activeNav, user.name]);
+  }), [tasks, query, filter]);
   const projects = useMemo(() => {
     const groups = new Map<string, { total: number; done: number }>();
     tasks.forEach(task => {
@@ -124,8 +124,8 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
       <div className="brand-row"><div className="brand-mark"><Command size={19} strokeWidth={2.7}/></div><span className="brand-name">taskflow<span className="brand-dot">.</span></span><button className="icon-button sidebar-close" aria-label="Close navigation" onClick={() => setMobileNav(false)}><X size={18}/></button></div>
       <button className="workspace-switch"><span className="workspace-avatar">A</span><span className="workspace-copy"><strong>Personal workspace</strong><small>Private to your account</small></span><ChevronDown size={15} className="muted-icon"/></button>
       <div className="sidebar-label">WORKSPACE</div>
-      <nav className="main-nav" aria-label="Main navigation">{navItems.map(item => { const Icon = item.icon; return <button key={item.label} onClick={() => { setActiveNav(item.label); setMobileNav(false); }} className={activeNav === item.label ? "nav-item active" : "nav-item"}><Icon size={17}/><span>{item.label}</span>{item.count && <span className="nav-count">{item.count}</span>}</button>; })}</nav>
-      <div className="sidebar-label project-label">YOUR PROJECTS <button className="tiny-plus" aria-label="Add project" onClick={() => flash("Projects need the backend integration.")}><Plus size={14}/></button></div>
+      <nav className="main-nav" aria-label="Main navigation">{navItems.map(item => { const Icon = item.icon; return <button key={item.label} onClick={() => { setActiveNav(item.label); setMobileNav(false); }} className={activeNav === item.label ? "nav-item active" : "nav-item"}><Icon size={17}/><span>{item.label}</span>{item.label === "My tasks" && <span className="nav-count">{tasks.length}</span>}</button>; })}</nav>
+      <div className="sidebar-label project-label">TASK LABELS <button className="tiny-plus" aria-label="Add project" onClick={() => flash("Projects need the backend integration.")}><Plus size={14}/></button></div>
       <div className="project-nav">{projects.map(project => <button className="project-link" key={project.name} onClick={() => { setQuery(project.name); setActiveNav("Overview"); }}><span className={"project-dot " + project.color}/><span>{project.name}</span></button>)}</div>
       <div className="sidebar-bottom">
         <div className="upgrade-card"><div className="upgrade-icon"><Sparkles size={16}/></div><strong>Make space for big ideas</strong><p>Bring your team together and do your best work.</p><button onClick={() => flash("Workspace plans are not connected yet.")}>Explore plans <ChevronRight size={14}/></button></div>
@@ -138,7 +138,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     <main className="main-panel">
       <header className="topbar"><button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={20}/></button><div className="breadcrumb"><span>Workspace</span><ChevronRight size={14}/><strong>{activeNav}</strong></div><div className="topbar-actions">
         <label className="search-box"><Search size={16}/><input aria-label="Search tasks and projects" placeholder="Search anything..." value={query} onChange={event => setQuery(event.target.value)}/><kbd>⌘ K</kbd></label>
-        <div className="action-wrapper"><button className={showNotifications ? "icon-button pressed" : "icon-button"} aria-label="Notifications" onClick={() => setShowNotifications(!showNotifications)}><Bell size={18}/><span className="notification-dot"/></button>{showNotifications && <div className="popover notification-popover"><div className="popover-heading">Notifications <span>Preview</span></div><div className="notification-item"><span className="notification-symbol purple-bg"><Users size={15}/></span><div><strong>Workspace collaboration</strong><p>Connect a workspace to invite teammates.</p><small>Preview content</small></div></div><div className="notification-item"><span className="notification-symbol green-bg"><CheckCheck size={15}/></span><div><strong>Task completed</strong><p>Payment edge cases was completed.</p><small>Preview content</small></div></div><button className="popover-footer" onClick={() => { setShowNotifications(false); flash("Notifications are preview content until API integration."); }}>Close notifications <ChevronRight size={14}/></button></div>}</div>
+        <div className="action-wrapper"><button className={showNotifications ? "icon-button pressed" : "icon-button"} aria-label="Notifications" onClick={() => setShowNotifications(!showNotifications)}><Bell size={18}/><span className="notification-dot"/></button>{showNotifications && <div className="popover notification-popover"><div className="popover-heading">Notifications</div><div className="notification-item"><span className="notification-symbol green-bg"><CheckCheck size={15}/></span><div><strong>You’re all caught up</strong><p>There are no notifications yet.</p><small>New updates will appear here when notifications are enabled.</small></div></div></div>}</div>
         <div className="topbar-divider"/><button className="top-profile" onClick={() => setShowProfile(!showProfile)}><span className="profile-avatar small">{initials(user.name)}</span><ChevronDown size={14}/></button>
       </div></header>
       <div className="page-content">
@@ -155,7 +155,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
               <div className="focus-legend"><div><span className="legend-dot legend-complete"/><div><strong>{completed} completed</strong><small>Nice work, keep going</small></div></div><div><span className="legend-dot legend-progress"/><div><strong>{inProgress} in progress</strong><small>Work in motion</small></div></div><div><span className="legend-dot legend-todo"/><div><strong>{tasks.length - completed - inProgress} to get started</strong><small>One step at a time</small></div></div></div></div>
             <div className="focus-note"><span className="note-spark"><Sparkles size={14}/></span><p><strong>Small steps count.</strong> Pick one important task and give it your full attention.</p></div>
           </article>
-          <article className="panel projects-panel"><div className="panel-heading"><div><h2>Label progress</h2><p>Labels are created automatically from your saved tasks.</p></div><button className="text-button" onClick={() => flash("Project details require the projects API.")}>View all <ChevronRight size={14}/></button></div>
+          <article className="panel projects-panel"><div className="panel-heading"><div><h2>Label progress</h2><p>Labels are created automatically from your saved tasks.</p></div><button className="text-button" onClick={() => flash("These insights are calculated from your saved task labels.")}>View labels <ChevronRight size={14}/></button></div>
             <div className="project-progress-list">{projects.map(project => <div className="project-progress" key={project.name}><div className={"project-icon " + project.color}>{project.name.slice(0, 1)}</div><div className="project-progress-main"><div className="project-progress-title"><strong>{project.name}</strong><span>{project.done}%</span></div><div className="progress-track"><i className={"project-progress-fill " + project.color} style={{width: project.done + "%"}}/></div><small>{project.total}</small></div></div>)}</div>
           </article>
         </section>
