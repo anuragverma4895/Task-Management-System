@@ -55,9 +55,12 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     const colors = ["purple", "orange", "green", "blue"];
     return Array.from(groups.entries()).map(([name, values], index) => ({ name, color: colors[index % colors.length], done: Math.round(values.done / values.total * 100), total: `${values.total} task${values.total === 1 ? "" : "s"}` }));
   }, [tasks]);
+  const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+  const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
   const completed = tasks.filter(task => task.status === "Completed").length;
   const inProgress = tasks.filter(task => task.status === "In progress").length;
-  const overdue = tasks.filter(task => task.due === "Overdue" && task.status !== "Completed").length;
+  const todayValue = dateInputValue(new Date());
+  const overdue = tasks.filter(task => task.dueDate && dateInputValue(new Date(task.dueDate)) < todayValue && task.status !== "Completed").length;
   const completion = tasks.length ? Math.round(completed / tasks.length * 100) : 0;
 
   function flash(message: string) {
@@ -154,7 +157,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
         <div className="topbar-divider"/><button className="top-profile" onClick={() => setShowProfile(!showProfile)}><span className="profile-avatar small">{initials(user.name)}</span><ChevronDown size={14}/></button>
       </div></header>
       <div className="page-content">
-        <section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-line"/> SATURDAY, OCTOBER 24, 2026</div><h1>Good evening, Anurag <span className="wave">✳</span></h1><p className="welcome-subtitle">Your tasks, your progress, all in one place.</p></div><div className="welcome-actions"><button className="button button-secondary" onClick={exportTasks}><Download size={16}/> Export</button><button className="button button-primary" onClick={() => { setEditingTaskId(null); setNewTitle(""); setNewDescription(""); setNewLabels(""); setNewPriority("Medium"); setNewDue(dateInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000))); setShowCreate(true); }}><Plus size={17}/> Create task</button></div></section>
+        <section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-line"/> {todayLabel}</div><h1>{greeting}, {user.name.split(/\\s+/)[0]} <span className="wave">✳</span></h1><p className="welcome-subtitle">Your tasks, your progress, all in one place.</p></div><div className="welcome-actions"><button className="button button-secondary" onClick={exportTasks}><Download size={16}/> Export</button><button className="button button-primary" onClick={() => { setEditingTaskId(null); setNewTitle(""); setNewDescription(""); setNewLabels(""); setNewPriority("Medium"); setNewDue(dateInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000))); setShowCreate(true); }}><Plus size={17}/> Create task</button></div></section>
         <section className="stats-grid" aria-label="Task statistics">
           <article className="stat-card"><div className="stat-top"><span className="stat-label">Total tasks</span><span className="stat-icon lavender"><ListTodo size={17}/></span></div><div className="stat-value">{String(tasks.length).padStart(2, "0")}<span className="stat-change positive"><ArrowDownUp size={12}/> all tasks</span></div><div className="stat-foot"><span className="mini-bars"><i/><i/><i/><i/><i/><i/><i/></span><span>Across your workspace</span></div></article>
           <article className="stat-card"><div className="stat-top"><span className="stat-label">In progress</span><span className="stat-icon blue-bg"><Clock3 size={17}/></span></div><div className="stat-value">{String(inProgress).padStart(2, "0")}<span className="stat-change neutral">Active now</span></div><div className="stat-foot"><span className="progress-track"><i style={{width: (tasks.length ? inProgress / tasks.length * 100 : 0) + "%"}}/></span><span>{tasks.length ? Math.round(inProgress / tasks.length * 100) : 0}% of tasks</span></div></article>
