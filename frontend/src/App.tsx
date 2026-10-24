@@ -6,7 +6,7 @@ import { Activity, ArrowDownUp, Bell, CalendarDays, Check, CheckCheck, ChevronDo
 
 type Status = "To do" | "In progress" | "In review" | "Completed";
 type Priority = "Urgent" | "High" | "Medium" | "Low";
-type Task = { id: string; title: string; description: string; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
+type Task = { id: string; title: string; description: string; dueDate: string | null; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
 const navItems = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "My tasks", icon: ListTodo },
@@ -25,6 +25,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All tasks");
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -33,7 +34,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
   const [newDescription, setNewDescription] = useState("");
   const [newLabels, setNewLabels] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("Medium");
-  const [newDue, setNewDue] = useState("Tomorrow");
+  const [newDue, setNewDue] = useState(() => dateInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
   const [notice, setNotice] = useState("");
 
   const visibleTasks = useMemo(() => tasks.filter(task => {
@@ -67,23 +68,32 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     event.preventDefault();
     const title = newTitle.trim();
     if (!title) return;
-    let dueDate: string | null = null;
-    if (newDue !== "No date") {
-      const due = new Date();
-      if (newDue === "Tomorrow") due.setDate(due.getDate() + 1);
-      due.setHours(12, 0, 0, 0);
-      dueDate = due.toISOString();
-    }
+    const dueDate = newDue ? new Date(`${newDue}T12:00:00`).toISOString() : null;
+    const payload = { title, description: newDescription.trim(), priority: newPriority.toLowerCase(), dueDate, labels: newLabels.split(",").map(label => label.trim()).filter(Boolean).slice(0, 20) };
     try {
-      const response = await api.post<{ data: TaskRecord }>("/tasks", {
-        title, description: newDescription.trim(), status: "todo", priority: newPriority.toLowerCase(), dueDate, labels: newLabels.split(",").map(label => label.trim()).filter(Boolean).slice(0, 20)
-      });
-      setTasks(current => [toDashboardTask(response.data.data), ...current]);
-      setNewTitle(""); setNewDescription(""); setNewLabels(""); setNewPriority("Medium"); setNewDue("Tomorrow"); setShowCreate(false);
-      flash("Task saved to your account.");
+      if (editingTaskId) {
+        const response = await api.patch<{ data: TaskRecord }>(`/tasks/${editingTaskId}`, payload);
+        const updated = toDashboardTask(response.data.data, user.name);
+        setTasks(current => current.map(task => task.id === editingTaskId ? updated : task));
+        flash("Task changes saved.");
+      } else {
+        const response = await api.post<{ data: TaskRecord }>("/tasks", { ...payload, status: "todo" });
+        setTasks(current => [toDashboardTask(response.data.data, user.name), ...current]);
+        flash("Task saved to your account.");
+      }
+      setNewTitle(""); setNewDescription(""); setNewLabels(""); setNewPriority("Medium"); setNewDue(dateInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000))); setEditingTaskId(null); setShowCreate(false);
     } catch (error) {
-      flash(error instanceof Error ? error.message : "Could not create task.");
+      flash(error instanceof Error ? error.message : editingTaskId ? "Could not update task." : "Could not create task.");
     }
+  }
+  function openEditTask(task: Task) {
+    setEditingTaskId(task.id);
+    setNewTitle(task.title);
+    setNewDescription(task.description);
+    setNewLabels(task.tag === "General" ? "" : task.tag);
+    setNewPriority(task.priority);
+    setNewDue(task.dueDate ? dateInputValue(new Date(task.dueDate)) : "");
+    setShowCreate(true);
   }
   function toggleTask(id: string) {
     const task = tasks.find(item => item.id === id);
@@ -144,7 +154,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
         <div className="topbar-divider"/><button className="top-profile" onClick={() => setShowProfile(!showProfile)}><span className="profile-avatar small">{initials(user.name)}</span><ChevronDown size={14}/></button>
       </div></header>
       <div className="page-content">
-        <section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-line"/> SATURDAY, OCTOBER 24, 2026</div><h1>Good evening, Anurag <span className="wave">✳</span></h1><p className="welcome-subtitle">Your tasks, your progress, all in one place.</p></div><div className="welcome-actions"><button className="button button-secondary" onClick={exportTasks}><Download size={16}/> Export</button><button className="button button-primary" onClick={() => setShowCreate(true)}><Plus size={17}/> Create task</button></div></section>
+        <section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-line"/> SATURDAY, OCTOBER 24, 2026</div><h1>Good evening, Anurag <span className="wave">✳</span></h1><p className="welcome-subtitle">Your tasks, your progress, all in one place.</p></div><div className="welcome-actions"><button className="button button-secondary" onClick={exportTasks}><Download size={16}/> Export</button><button className="button button-primary" onClick={() => { setEditingTaskId(null); setNewTitle(""); setNewDescription(""); setNewLabels(""); setNewPriority("Medium"); setNewDue(dateInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000))); setShowCreate(true); }}><Plus size={17}/> Create task</button></div></section>
         <section className="stats-grid" aria-label="Task statistics">
           <article className="stat-card"><div className="stat-top"><span className="stat-label">Total tasks</span><span className="stat-icon lavender"><ListTodo size={17}/></span></div><div className="stat-value">{String(tasks.length).padStart(2, "0")}<span className="stat-change positive"><ArrowDownUp size={12}/> all tasks</span></div><div className="stat-foot"><span className="mini-bars"><i/><i/><i/><i/><i/><i/><i/></span><span>Across your workspace</span></div></article>
           <article className="stat-card"><div className="stat-top"><span className="stat-label">In progress</span><span className="stat-icon blue-bg"><Clock3 size={17}/></span></div><div className="stat-value">{String(inProgress).padStart(2, "0")}<span className="stat-change neutral">Active now</span></div><div className="stat-foot"><span className="progress-track"><i style={{width: (tasks.length ? inProgress / tasks.length * 100 : 0) + "%"}}/></span><span>{tasks.length ? Math.round(inProgress / tasks.length * 100) : 0}% of tasks</span></div></article>
@@ -164,7 +174,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
         <section className="panel tasks-panel"><div className="panel-heading task-heading"><div><div className="title-with-count"><h2>{activeNav === "My tasks" ? "My tasks" : "Tasks overview"}</h2><span className="count-pill">{visibleTasks.length}</span></div><p>Tasks are saved to your account and stay there when you sign back in.</p></div><button className="button button-small button-secondary" onClick={() => setFilter(filter === "All tasks" ? "In progress" : "All tasks")}><Filter size={14}/>{filter === "All tasks" ? "Filter" : "In progress"}<ChevronDown size={14}/></button></div>
           <div className="task-toolbar"><div className="task-tabs"><button className={filter === "All tasks" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("All tasks")}>All tasks</button><button className={filter === "To do" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("To do")}>To do</button><button className={filter === "In progress" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("In progress")}>In progress</button><button className={filter === "Completed" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("Completed")}>Completed</button></div><button className="icon-button sort-button" aria-label="Reverse task order" onClick={() => setTasks(current => [...current].reverse())}><ArrowDownUp size={15}/></button></div>
           <div className="task-table-wrap"><table className="task-table"><thead><tr><th className="check-col"><input type="checkbox" aria-label="Select all visible tasks" checked={visibleTasks.length > 0 && visibleTasks.every(task => task.checked)} onChange={toggleVisibleTasks}/></th><th>Task name</th><th>Priority</th><th>Status</th><th>Due date</th><th>Assignee</th><th/></tr></thead>
-            <tbody>{visibleTasks.map(task => <tr key={task.id} className={task.checked ? "completed-row" : ""}><td><input type="checkbox" aria-label={"Complete " + task.title} checked={task.checked} onChange={() => toggleTask(task.id)}/></td><td><div className="task-title-cell"><button className={task.checked ? "task-check checked" : "task-check"} aria-label={"Toggle " + task.title} onClick={() => toggleTask(task.id)}>{task.checked && <Check size={12}/>}</button><div><strong>{task.title}</strong><small>{task.description || task.project}</small></div></div></td><td><span className={"priority priority-" + task.priority.toLowerCase()}><span/>{task.priority}</span></td><td><select className={"status-select status-" + task.status.toLowerCase().replaceAll(" ", "-")} aria-label={"Status for " + task.title} value={task.status} onChange={event => changeStatus(task.id, event.target.value as Status)}><option>To do</option><option>In progress</option><option>In review</option><option>Completed</option></select></td><td><span className={task.due === "Today" ? "due-date due-today" : "due-date"}><CalendarDays size={13}/>{task.due}</span></td><td><span className="assignee-avatar">{task.assignee}</span></td><td><button className="icon-button row-menu" aria-label={"Delete " + task.title} onClick={() => void removeTask(task.id)}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table>
+            <tbody>{visibleTasks.map(task => <tr key={task.id} className={task.checked ? "completed-row" : ""}><td><input type="checkbox" aria-label={"Complete " + task.title} checked={task.checked} onChange={() => toggleTask(task.id)}/></td><td><div className="task-title-cell"><button className={task.checked ? "task-check checked" : "task-check"} aria-label={"Toggle " + task.title} onClick={() => toggleTask(task.id)}>{task.checked && <Check size={12}/>}</button><div><button className="task-title-edit" onClick={() => openEditTask(task)}>{task.title}</button><small>{task.description || task.project}</small></div></div></td><td><span className={"priority priority-" + task.priority.toLowerCase()}><span/>{task.priority}</span></td><td><select className={"status-select status-" + task.status.toLowerCase().replaceAll(" ", "-")} aria-label={"Status for " + task.title} value={task.status} onChange={event => changeStatus(task.id, event.target.value as Status)}><option>To do</option><option>In progress</option><option>In review</option><option>Completed</option></select></td><td><span className={task.due === "Today" ? "due-date due-today" : "due-date"}><CalendarDays size={13}/>{task.due}</span></td><td><span className="assignee-avatar">{task.assignee}</span></td><td><button className="icon-button row-menu" aria-label={"Delete " + task.title} onClick={() => void removeTask(task.id)}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table>
             {visibleTasks.length === 0 && <div className="empty-state"><div className="empty-icon"><Search size={21}/></div><strong>No tasks found</strong><p>Try another search or change your filters.</p><button className="button button-secondary" onClick={() => {setQuery("");setFilter("All tasks");}}>Clear filters</button></div>}
           </div>
           <div className="table-footer"><span>Showing <strong>{visibleTasks.length}</strong> of <strong>{tasks.length}</strong> tasks <span className="footer-muted">· Saved in your account</span></span><div className="pagination"><button className="icon-button" aria-label="Previous page" disabled><ChevronLeft size={16}/></button><button className="page-number active-page">1</button><button className="icon-button" aria-label="Next page" disabled><ChevronRight size={16}/></button></div></div>
@@ -172,12 +182,17 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
         <footer className="page-footer"><span>© 2026 TaskFlow. Built for thoughtful work.</span><span><span className="status-indicator"/> Your workspace <span className="footer-divider">·</span> Made with intention</span></footer>
       </div>
     </main>
-    {showCreate && <div className="modal-backdrop" role="presentation" onMouseDown={event => {if (event.target === event.currentTarget) setShowCreate(false);}}><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="create-task-title"><div className="modal-header"><div><span className="modal-kicker">NEW TASK</span><h2 id="create-task-title">Create a task</h2><p>Get it out of your head and into your plan.</p></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowCreate(false)}><X size={18}/></button></div>
-      <form onSubmit={createTask}><label className="form-label">Task name<input autoFocus required maxLength={140} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="What needs to get done?"/></label><label className="form-label">Description<textarea maxLength={5000} rows={3} value={newDescription} onChange={event => setNewDescription(event.target.value)} placeholder="Add context or notes (optional)"/></label><label className="form-label">Labels<input maxLength={500} value={newLabels} onChange={event => setNewLabels(event.target.value)} placeholder="e.g. work, planning, urgent (comma-separated)"/></label><div className="form-two-col"><label className="form-label">Priority<select value={newPriority} onChange={event => setNewPriority(event.target.value as Priority)}><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></label><label className="form-label">Due date<select value={newDue} onChange={event => setNewDue(event.target.value)}><option>Today</option><option>Tomorrow</option><option>No date</option></select></label></div><div className="modal-foot"><span><span className="modal-lock"><Target size={14}/></span> Private to your account</span><div><button type="button" className="button button-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15}/> Create task</button></div></div></form></section></div>}
+    {showCreate && <div className="modal-backdrop" role="presentation" onMouseDown={event => {if (event.target === event.currentTarget) setShowCreate(false);}}><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="create-task-title"><div className="modal-header"><div><span className="modal-kicker">{editingTaskId ? "EDIT TASK" : "NEW TASK"}</span><h2 id="create-task-title">{editingTaskId ? "Edit task" : "Create a task"}</h2><p>{editingTaskId ? "Update the details and save your changes." : "Get it out of your head and into your plan."}</p></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowCreate(false)}><X size={18}/></button></div>
+      <form onSubmit={createTask}><label className="form-label">Task name<input autoFocus required maxLength={140} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="What needs to get done?"/></label><label className="form-label">Description<textarea maxLength={5000} rows={3} value={newDescription} onChange={event => setNewDescription(event.target.value)} placeholder="Add context or notes (optional)"/></label><label className="form-label">Labels<input maxLength={500} value={newLabels} onChange={event => setNewLabels(event.target.value)} placeholder="e.g. work, planning, urgent (comma-separated)"/></label><div className="form-two-col"><label className="form-label">Priority<select value={newPriority} onChange={event => setNewPriority(event.target.value as Priority)}><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></label><label className="form-label">Due date<input type="date" value={newDue} onChange={event => setNewDue(event.target.value)}/></label></div><div className="modal-foot"><span><span className="modal-lock"><Target size={14}/></span> Private to your account</span><div><button type="button" className="button button-secondary" onClick={() => {setShowCreate(false);setEditingTaskId(null);}}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15}/>{editingTaskId ? "Save changes" : "Create task"}</button></div></div></form></section></div>}
     {notice && <div className="toast" role="status"><CheckCheck size={16}/>{notice}<button aria-label="Dismiss notification" onClick={() => setNotice("")}><X size={14}/></button></div>}
   </div>;
 }
 
+
+function dateInputValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
 
 function initials(name: string): string {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? "").join("") || "U";
@@ -194,7 +209,7 @@ function toDashboardTask(task: TaskRecord, userName: string): Task {
     const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     due = sameDay(date, today) ? "Today" : sameDay(date, tomorrow) ? "Tomorrow" : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  return { id: task._id, title: task.title, description: task.description ?? "", project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: initials(userName), checked: task.status === "completed" };
+  return { id: task._id, title: task.title, description: task.description ?? "", dueDate: task.dueDate ?? null, project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: initials(userName), checked: task.status === "completed" };
 }
 
 export default function App() {
