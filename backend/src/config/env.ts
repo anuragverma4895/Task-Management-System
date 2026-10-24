@@ -22,7 +22,7 @@ const schema = z.object({
   UPLOAD_DIRECTORY: z.string().default("uploads"),
   MAX_FILE_SIZE_MB: z.coerce.number().int().min(1).max(50).default(5)
 }).superRefine((value, context) => {
-  if (value.NODE_ENV === "production" && (value.JWT_SECRET.startsWith("development_only") || value.COOKIE_SECRET.startsWith("development_only"))) {
+  if (value.NODE_ENV === "production" && [value.JWT_SECRET, value.COOKIE_SECRET].some(secret => secret.startsWith("development_only") || secret.toLowerCase().includes("replace_with"))) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Production requires strong JWT_SECRET and COOKIE_SECRET values." });
   }
 });
