@@ -7,12 +7,6 @@ import { Activity, ArrowDownUp, Bell, CalendarDays, Check, CheckCheck, ChevronDo
 type Status = "To do" | "In progress" | "In review" | "Completed";
 type Priority = "Urgent" | "High" | "Medium" | "Low";
 type Task = { id: string; title: string; project: string; status: Status; priority: Priority; due: string; tag: string; assignee: string; checked: boolean };
-const projects = [
-  { name: "Website redesign", color: "purple", done: 72, total: "18 tasks" },
-  { name: "Mobile application", color: "orange", done: 46, total: "24 tasks" },
-  { name: "Design system", color: "green", done: 85, total: "12 tasks" },
-  { name: "Product strategy", color: "blue", done: 34, total: "9 tasks" }
-];
 const navItems = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "My tasks", icon: ListTodo, count: "8" },
@@ -24,7 +18,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
   const [tasks, setTasks] = useState<Task[]>([]);
   useEffect(() => {
     api.get<{ data: TaskRecord[] }>("/tasks", { params: { limit: 100 } })
-      .then(response => setTasks(response.data.data.map(toDashboardTask)))
+      .then(response => setTasks(response.data.data.map(task => toDashboardTask(task, user.name))))
       .catch(error => flash(error instanceof Error ? error.message : "Could not load your tasks."));
   }, []);
   const [activeNav, setActiveNav] = useState("Overview");
@@ -46,6 +40,18 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     const matchesNav = activeNav !== "My tasks" || task.assignee === initials(user.name);
     return matchesQuery && matchesFilter && matchesNav;
   }), [tasks, query, filter, activeNav, user.name]);
+  const projects = useMemo(() => {
+    const groups = new Map<string, { total: number; done: number }>();
+    tasks.forEach(task => {
+      const label = task.tag || "General";
+      const current = groups.get(label) ?? { total: 0, done: 0 };
+      current.total += 1;
+      if (task.status === "Completed") current.done += 1;
+      groups.set(label, current);
+    });
+    const colors = ["purple", "orange", "green", "blue"];
+    return Array.from(groups.entries()).map(([name, values], index) => ({ name, color: colors[index % colors.length], done: Math.round(values.done / values.total * 100), total: `${values.total} task${values.total === 1 ? "" : "s"}` }));
+  }, [tasks]);
   const completed = tasks.filter(task => task.status === "Completed").length;
   const inProgress = tasks.filter(task => task.status === "In progress").length;
   const overdue = tasks.filter(task => task.due === "Overdue" && task.status !== "Completed").length;
@@ -144,19 +150,19 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
           <article className="stat-card"><div className="stat-top"><span className="stat-label">Overdue</span><span className="stat-icon orange-bg"><Zap size={17}/></span></div><div className="stat-value">{String(overdue).padStart(2, "0")}<span className={overdue ? "stat-change negative" : "stat-change positive"}>{overdue ? "Needs attention" : "All caught up"}</span></div><div className="stat-foot"><span className="overdue-spark">↗</span><span>Keep your momentum</span></div></article>
         </section>
         <section className="middle-grid">
-          <article className="panel progress-panel"><div className="panel-heading"><div><h2>Your focus</h2><p>A snapshot of the tasks in your account.</p></div><button className="icon-button" aria-label="Focus options" onClick={() => flash("Focus options can be configured after settings are connected.")}><MoreHorizontal size={19}/></button></div>
+          <article className="panel progress-panel"><div className="panel-heading"><div><h2>Your focus</h2><p>Progress grouped by labels on your saved tasks.</p></div><button className="icon-button" aria-label="Focus options" onClick={() => flash("Focus options can be configured after settings are connected.")}><MoreHorizontal size={19}/></button></div>
             <div className="focus-content"><div className="ring-wrap"><svg viewBox="0 0 120 120" className="progress-ring" role="img" aria-label={completion + "% completion"}><circle className="ring-bg" cx="60" cy="60" r="49"/><circle className="ring-fill" cx="60" cy="60" r="49" style={{strokeDasharray: (completion * 3.078) + " 308"}}/></svg><div className="ring-label"><strong>{completion}%</strong><span>completed</span></div></div>
               <div className="focus-legend"><div><span className="legend-dot legend-complete"/><div><strong>{completed} completed</strong><small>Nice work, keep going</small></div></div><div><span className="legend-dot legend-progress"/><div><strong>{inProgress} in progress</strong><small>Work in motion</small></div></div><div><span className="legend-dot legend-todo"/><div><strong>{tasks.length - completed - inProgress} to get started</strong><small>One step at a time</small></div></div></div></div>
             <div className="focus-note"><span className="note-spark"><Sparkles size={14}/></span><p><strong>Small steps count.</strong> Pick one important task and give it your full attention.</p></div>
           </article>
-          <article className="panel projects-panel"><div className="panel-heading"><div><h2>Project progress</h2><p>Project insights will appear here as you organize your work.</p></div><button className="text-button" onClick={() => flash("Project details require the projects API.")}>View all <ChevronRight size={14}/></button></div>
+          <article className="panel projects-panel"><div className="panel-heading"><div><h2>Label progress</h2><p>Labels are created automatically from your saved tasks.</p></div><button className="text-button" onClick={() => flash("Project details require the projects API.")}>View all <ChevronRight size={14}/></button></div>
             <div className="project-progress-list">{projects.map(project => <div className="project-progress" key={project.name}><div className={"project-icon " + project.color}>{project.name.slice(0, 1)}</div><div className="project-progress-main"><div className="project-progress-title"><strong>{project.name}</strong><span>{project.done}%</span></div><div className="progress-track"><i className={"project-progress-fill " + project.color} style={{width: project.done + "%"}}/></div><small>{project.total}</small></div></div>)}</div>
           </article>
         </section>
         <section className="panel tasks-panel"><div className="panel-heading task-heading"><div><div className="title-with-count"><h2>{activeNav === "My tasks" ? "My tasks" : "Tasks overview"}</h2><span className="count-pill">{visibleTasks.length}</span></div><p>Tasks are saved to your account and stay there when you sign back in.</p></div><button className="button button-small button-secondary" onClick={() => setFilter(filter === "All tasks" ? "In progress" : "All tasks")}><Filter size={14}/>{filter === "All tasks" ? "Filter" : "In progress"}<ChevronDown size={14}/></button></div>
           <div className="task-toolbar"><div className="task-tabs"><button className={filter === "All tasks" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("All tasks")}>All tasks</button><button className={filter === "To do" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("To do")}>To do</button><button className={filter === "In progress" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("In progress")}>In progress</button><button className={filter === "Completed" ? "task-tab selected" : "task-tab"} onClick={() => setFilter("Completed")}>Completed</button></div><button className="icon-button sort-button" aria-label="Reverse task order" onClick={() => setTasks(current => [...current].reverse())}><ArrowDownUp size={15}/></button></div>
           <div className="task-table-wrap"><table className="task-table"><thead><tr><th className="check-col"><input type="checkbox" aria-label="Select all visible tasks" checked={visibleTasks.length > 0 && visibleTasks.every(task => task.checked)} onChange={toggleVisibleTasks}/></th><th>Task name</th><th>Priority</th><th>Status</th><th>Due date</th><th>Assignee</th><th/></tr></thead>
-            <tbody>{visibleTasks.map(task => <tr key={task.id} className={task.checked ? "completed-row" : ""}><td><input type="checkbox" aria-label={"Complete " + task.title} checked={task.checked} onChange={() => toggleTask(task.id)}/></td><td><div className="task-title-cell"><button className={task.checked ? "task-check checked" : "task-check"} aria-label={"Toggle " + task.title} onClick={() => toggleTask(task.id)}>{task.checked && <Check size={12}/>}</button><div><strong>{task.title}</strong><small>{task.project}</small></div></div></td><td><span className={"priority priority-" + task.priority.toLowerCase()}><span/>{task.priority}</span></td><td><select className={"status-select status-" + task.status.toLowerCase().replaceAll(" ", "-")} aria-label={"Status for " + task.title} value={task.status} onChange={event => changeStatus(task.id, event.target.value as Status)}><option>To do</option><option>In progress</option><option>In review</option><option>Completed</option></select></td><td><span className={task.due === "Today" ? "due-date due-today" : "due-date"}><CalendarDays size={13}/>{task.due}</span></td><td><span className="assignee-avatar">{task.assignee}</span></td><td><button className="icon-button row-menu" aria-label={"Remove " + task.title + " from preview"} onClick={() => { setTasks(current => current.filter(item => item.id !== task.id)); flash("Task removed from this session only."); }}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table>
+            <tbody>{visibleTasks.map(task => <tr key={task.id} className={task.checked ? "completed-row" : ""}><td><input type="checkbox" aria-label={"Complete " + task.title} checked={task.checked} onChange={() => toggleTask(task.id)}/></td><td><div className="task-title-cell"><button className={task.checked ? "task-check checked" : "task-check"} aria-label={"Toggle " + task.title} onClick={() => toggleTask(task.id)}>{task.checked && <Check size={12}/>}</button><div><strong>{task.title}</strong><small>{task.project}</small></div></div></td><td><span className={"priority priority-" + task.priority.toLowerCase()}><span/>{task.priority}</span></td><td><select className={"status-select status-" + task.status.toLowerCase().replaceAll(" ", "-")} aria-label={"Status for " + task.title} value={task.status} onChange={event => changeStatus(task.id, event.target.value as Status)}><option>To do</option><option>In progress</option><option>In review</option><option>Completed</option></select></td><td><span className={task.due === "Today" ? "due-date due-today" : "due-date"}><CalendarDays size={13}/>{task.due}</span></td><td><span className="assignee-avatar">{task.assignee}</span></td><td><button className="icon-button row-menu" aria-label={"Delete " + task.title} onClick={() => void removeTask(task.id)}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table>
             {visibleTasks.length === 0 && <div className="empty-state"><div className="empty-icon"><Search size={21}/></div><strong>No tasks found</strong><p>Try another search or change your filters.</p><button className="button button-secondary" onClick={() => {setQuery("");setFilter("All tasks");}}>Clear filters</button></div>}
           </div>
           <div className="table-footer"><span>Showing <strong>{visibleTasks.length}</strong> of <strong>{tasks.length}</strong> tasks <span className="footer-muted">· Saved in your account</span></span><div className="pagination"><button className="icon-button" aria-label="Previous page" disabled><ChevronLeft size={16}/></button><button className="page-number active-page">1</button><button className="icon-button" aria-label="Next page" disabled><ChevronRight size={16}/></button></div></div>
@@ -175,7 +181,7 @@ function initials(name: string): string {
   return name.trim().split(/\\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? "").join("") || "U";
 }
 
-function toDashboardTask(task: TaskRecord): Task {
+function toDashboardTask(task: TaskRecord, userName: string): Task {
   const statusLabels: Record<TaskStatus, Status> = { backlog: "To do", todo: "To do", in_progress: "In progress", in_review: "In review", completed: "Completed", cancelled: "To do" };
   const priorityLabels: Record<string, Priority> = { urgent: "Urgent", high: "High", medium: "Medium", low: "Low" };
   let due = "No date";
@@ -186,7 +192,7 @@ function toDashboardTask(task: TaskRecord): Task {
     const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     due = sameDay(date, today) ? "Today" : sameDay(date, tomorrow) ? "Tomorrow" : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  return { id: task._id, title: task.title, project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: "ME", checked: task.status === "completed" };
+  return { id: task._id, title: task.title, project: "Personal workspace", status: statusLabels[task.status], priority: priorityLabels[task.priority] ?? "Medium", due, tag: task.labels?.[0] ?? "General", assignee: initials(userName), checked: task.status === "completed" };
 }
 
 export default function App() {
