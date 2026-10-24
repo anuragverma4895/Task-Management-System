@@ -7,11 +7,11 @@ TaskFlow is a full-stack task manager. Every person can create an account, sign 
 - Password hashing with bcrypt and server-side, opaque sessions stored as token hashes.
 - HTTP-only session cookie, logout, and rate-limited authentication endpoints.
 - Per-user task creation, listing, search/filter, status/priority/due-date display, status updates, deletion, and CSV export.
-- Responsive dashboard, light/dark appearance toggle, and task metrics calculated from saved tasks.
+- Responsive dashboard, light/dark appearance toggle, task metrics calculated from saved tasks, due-date agenda, and per-user activity history.
 - Separate React/Vite frontend and Express/Mongoose backend.
 
 ## Current limitations
-This is a working MVP foundation, not a finished collaboration suite. Shared workspaces, invitations/roles, project CRUD, calendar view, activity history, email verification/password reset, file attachments, reminders, and real-time collaboration are not implemented yet. Notification UI is informational only. Do not present these as available features.
+This is a working MVP foundation, not a finished collaboration suite. Shared workspaces, invitations/roles, project CRUD, email verification/password reset, file attachments, reminders, notification delivery, and real-time collaboration are not implemented yet. Calendar agenda is based on due dates; activity history records task changes. Notification UI is informational only. Do not present these as available features.
 
 ## Tech stack
 - **Frontend:** React, Vite, TypeScript, TanStack Query, Axios, Lucide.
