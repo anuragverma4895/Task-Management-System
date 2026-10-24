@@ -126,8 +126,8 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     void Promise.all(visibleTasks.map(task => changeStatus(task.id, shouldComplete ? "Completed" : "To do")));
   }
   function exportTasks() {
-    const header = ["Title", "Project", "Status", "Priority", "Due", "Tag"];
-    const csv = [header, ...tasks.map(t => [t.title, t.project, t.status, t.priority, t.due, t.tag])]
+    const header = ["Title", "Description", "Status", "Priority", "Due date", "Labels"];
+    const csv = [header, ...tasks.map(t => [t.title, t.description, t.status, t.priority, t.due, t.labels.join("; ")])]
       .map(row => row.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a"); link.href = url; link.download = "taskflow-tasks.csv"; link.click(); URL.revokeObjectURL(url);
@@ -139,7 +139,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
       <div className="brand-row"><div className="brand-mark"><Command size={19} strokeWidth={2.7}/></div><span className="brand-name">taskflow<span className="brand-dot">.</span></span><button className="icon-button sidebar-close" aria-label="Close navigation" onClick={() => setMobileNav(false)}><X size={18}/></button></div>
       <button className="workspace-switch"><span className="workspace-avatar">A</span><span className="workspace-copy"><strong>Personal workspace</strong><small>Private to your account</small></span><ChevronDown size={15} className="muted-icon"/></button>
       <div className="sidebar-label">WORKSPACE</div>
-      <nav className="main-nav" aria-label="Main navigation">{navItems.map(item => { const Icon = item.icon; return <button key={item.label} onClick={() => { setActiveNav(item.label); setMobileNav(false); }} className={activeNav === item.label ? "nav-item active" : "nav-item"}><Icon size={17}/><span>{item.label}</span>{item.label === "My tasks" && <span className="nav-count">{tasks.length}</span>}</button>; })}</nav>
+      <nav className="main-nav" aria-label="Main navigation">{navItems.map(item => { const Icon = item.icon; return <button key={item.label} onClick={() => { if (item.label === "Calendar" || item.label === "Activity") { flash(`${item.label} view is not implemented yet.`); setMobileNav(false); return; } setActiveNav(item.label); setMobileNav(false); }} className={activeNav === item.label ? "nav-item active" : "nav-item"}><Icon size={17}/><span>{item.label}</span>{item.label === "My tasks" && <span className="nav-count">{tasks.length}</span>}</button>; })}</nav>
       <div className="sidebar-label project-label">TASK LABELS <button className="tiny-plus" aria-label="Add project" onClick={() => flash("Projects need the backend integration.")}><Plus size={14}/></button></div>
       <div className="project-nav">{projects.map(project => <button className="project-link" key={project.name} onClick={() => { setQuery(project.name); setActiveNav("Overview"); }}><span className={"project-dot " + project.color}/><span>{project.name}</span></button>)}</div>
       <div className="sidebar-bottom">
