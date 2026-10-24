@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import api from "./api/client";
 import AuthGate, { type TaskFlowUser } from "./components/AuthGate";
 import type { TaskRecord, TaskStatus } from "./types";
-import { Activity, ArrowDownUp, Bell, CalendarDays, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command, Download, Filter, LayoutDashboard, ListTodo, LogOut, Menu, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Users, X, Zap, Clock3 } from "lucide-react";
+import { Activity, ArrowDownUp, Bell, CalendarDays, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command, Download, Filter, LayoutDashboard, ListTodo, LogOut, Menu, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, X, Zap, Clock3 } from "lucide-react";
 
 type Status = "To do" | "In progress" | "In review" | "Completed";
 type Priority = "Urgent" | "High" | "Medium" | "Low";
@@ -103,7 +103,7 @@ function Dashboard({ user, onLogout }: { user: TaskFlowUser; onLogout: () => Pro
     const apiStatus: Record<Status, TaskStatus> = { "To do": "todo", "In progress": "in_progress", "In review": "in_review", "Completed": "completed" };
     try {
       const response = await api.patch<{ data: TaskRecord }>(`/tasks/${id}`, { status: apiStatus[status] });
-      const updated = toDashboardTask(response.data.data);
+      const updated = toDashboardTask(response.data.data, user.name);
       setTasks(current => current.map(task => task.id === id ? updated : task));
     } catch (error) {
       flash(error instanceof Error ? error.message : "Could not update task.");
