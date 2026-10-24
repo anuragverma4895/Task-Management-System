@@ -37,6 +37,7 @@ Passwords are hashed with bcrypt before storage. Session tokens are random and o
 | GET | `/tasks/:id` | Get one owned task |
 | PATCH | `/tasks/:id` | Update an owned task |
 | DELETE | `/tasks/:id` | Delete an owned task |
+| GET | `/activity` | List the signed-in user's recent task activity |
 
 Create task body:
 ```json
@@ -63,4 +64,4 @@ Create task body:
 List responses use `{ data, page, limit, total, pages }`; single-task responses use `{ data }`. Validation errors return HTTP 400; unauthenticated requests return HTTP 401. The server derives ownership from the session; clients must not submit ownership fields.
 
 ## Not implemented yet
-Workspace membership/roles, projects CRUD, calendar endpoints, activity history, notifications, file uploads, scheduled reminders, email verification/password recovery, and real-time collaboration are future work.
+Workspace membership/roles, projects CRUD, notifications, file uploads, scheduled reminders, email verification/password recovery, and real-time collaboration are future work. The calendar agenda is derived from task due dates in the frontend.
