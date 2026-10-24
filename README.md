@@ -1,73 +1,80 @@
-# TaskFlow — Full-Stack Task Management
+# TaskFlow — Personal Task Management
 
-TaskFlow is a full-stack task management and productivity platform organized as a TypeScript monorepo with separate `frontend/` and `backend/` apps and shared root environment configuration.
+TaskFlow is a full-stack task manager. Every person can create an account, sign in from any browser, and manage a private task list. User accounts and tasks are stored in MongoDB; each task API request is scoped to the signed-in user's ID on the server.
 
-> **Implementation status:** This foundation includes monorepo configuration, a responsive dashboard preview, API server scaffold, environment handling, and documentation. It is not yet a complete production application. Review the verification commands and known limitations before deploying.
+## What works in this version
+- Account creation and sign-in with email and password.
+- Password hashing with bcrypt and server-side, opaque sessions stored as token hashes.
+- HTTP-only session cookie, logout, and rate-limited authentication endpoints.
+- Per-user task creation, listing, search/filter, status/priority/due-date display, status updates, deletion, and CSV export.
+- Responsive dashboard, light/dark appearance toggle, and task metrics calculated from saved tasks.
+- Separate React/Vite frontend and Express/Mongoose backend.
 
-## Goals
-- Manage tasks by status, priority, due date, project, and labels.
-- Provide a responsive task overview and productivity metrics.
-- Separate React UI from Express APIs.
-- Use MongoDB for persisted data and Socket.IO for authorized real-time collaboration as these modules are completed.
-- Keep server secrets in root `.env`; expose only public `VITE_*` values to the browser.
+## Current limitations
+This is a working MVP foundation, not a finished collaboration suite. Shared workspaces, invitations/roles, project CRUD, calendar view, activity history, email verification/password reset, file attachments, reminders, and real-time collaboration are not implemented yet. Notification UI is informational only. Do not present these as available features.
 
-## Stack
-- **Frontend:** React, Vite, TypeScript, React Router, TanStack Query, Axios, Lucide, Socket.IO Client.
-- **Backend:** Node.js, Express, TypeScript, MongoDB/Mongoose, Socket.IO, Zod, Helmet, rate limiting.
-- **Quality:** TypeScript checks, lint/test scaffolding.
+## Tech stack
+- **Frontend:** React, Vite, TypeScript, TanStack Query, Axios, Lucide.
+- **Backend:** Node.js 20+, Express, TypeScript, MongoDB/Mongoose, bcryptjs, Zod, Helmet, rate limiting.
+- **Session security:** random opaque session token; only its SHA-256 hash is stored in MongoDB; cookie is HTTP-only and SameSite=Lax.
 
-## Structure
+## Folder structure
 ```text
 .
-├── frontend/       # React + Vite application
-├── backend/        # Express REST API and server
+├── frontend/       # React application
+├── backend/        # Express API, authentication, task endpoints and models
 ├── docs/           # Architecture and API notes
-├── .env            # Local-only environment; ignored by Git
-├── .env.example    # Safe variable template
-├── package.json    # npm workspace scripts
-└── README.md
+├── .env.example    # Safe local configuration template
+├── .env            # Your local secrets/config; never commit this
+└── package.json    # npm workspace commands
 ```
 
-## Prerequisites
-- Node.js 20+ and npm.
-- MongoDB local instance or MongoDB Atlas URI for database-backed flows.
-- Optional SMTP provider for email delivery.
+## Run locally (Windows PowerShell)
 
-## Local setup
-1. Clone this repository and enter the root directory.
-2. Install: `npm install`.
-3. Configure the root `.env` using `.env.example` as a reference.
-4. Start both apps: `npm run dev`.
-5. Frontend: http://localhost:5173. Backend health endpoint: http://localhost:5000/api/health.
+1. Install Node.js 20 or newer.
+2. Install dependencies from the repository root:
+   ```powershell
+   npm install
+   ```
+3. Create your local environment file:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+4. Set `MONGODB_URI` in the root `.env` to a reachable MongoDB database. You can use a local MongoDB server or MongoDB Atlas. The default URI assumes MongoDB is installed and running on your PC.
+5. Start the frontend and backend:
+   ```powershell
+   npm run dev
+   ```
+6. Open **http://localhost:5173** and create an account. The backend health endpoint is **http://localhost:5000/api/health**.
 
-## Environment
-The backend resolves the root `.env` independently of the working directory. Vite reads from the repository root; only variables beginning with `VITE_` are exposed to client code. Never put secrets in a `VITE_` variable.
+### MongoDB Atlas
+Create a database and database user in Atlas, allow network access only from the IPs you need, and copy the connection URI into `MONGODB_URI`. Replace the username/password placeholders in the URI and URL-encode special characters in credentials. Never expose the database URI in a `VITE_*` variable or commit it to Git.
 
-Production hosts do not automatically inherit the local root `.env`:
-- **Render:** set backend environment variables in the service dashboard and configure `FRONTEND_URL`.
-- **Vercel:** set only necessary public values such as `VITE_API_URL`.
-- **MongoDB Atlas:** create a least-privilege database user, restrict network access, and set `MONGODB_URI` on the backend only.
+### Environment variables
+- `PORT`: backend port (default 5000).
+- `FRONTEND_URL`: exact frontend origin allowed by CORS (local default 5173).
+- `VITE_API_URL`: frontend API base URL.
+- `MONGODB_URI`: backend-only MongoDB connection string.
+- `COOKIE_SECRET`, `JWT_SECRET`: server environment secrets; use strong, unique values in production. Current browser sessions are opaque database-backed sessions, not JWTs.
+- `NODE_ENV=production`: enables secure session cookies; production must use HTTPS.
 
-## Scripts
+## Commands
 ```bash
 npm run dev
 npm run build
+npm run typecheck
 npm run test
 npm run lint
-npm run typecheck
 ```
 
+Run build, typecheck and tests before deploying. This repository change has not been executed in your local environment by GitHub's file editor; please run those checks locally and share any error output so it can be fixed.
+
+## Deployment
+Deploy the frontend and backend separately or configure a single host to serve both. Set the backend's `MONGODB_URI`, a strong `COOKIE_SECRET`, `FRONTEND_URL`, and `NODE_ENV=production` in the hosting provider. Set `VITE_API_URL` to the deployed API URL at frontend build time. Use HTTPS and an exact CORS origin. Never upload your local `.env`.
+
 ## Design
-The dashboard uses a light background, near-black bold Times New Roman typography, clear task status/priority indicators, responsive navigation, and a dark theme toggle.
+Light, responsive dashboard; high-contrast bold Times New Roman typography; status and priority indicators; search, filters, CSV export, and an optional dark appearance.
 
 ## Documentation
 - [Architecture](docs/architecture.md)
 - [API documentation](docs/api-documentation.md)
-
-## Screenshots
-Add genuine screenshots after running the app locally. Do not use placeholder screenshots to imply working functionality.
-
-## Security and verification
-Never commit `.env`, production data, credentials, or private uploads. Keep authorization checks on the server, use HTTPS and secure cookies in production, and restrict CORS to the intended frontend origin.
-
-A GitHub commit alone does not prove dependencies install, tests pass, or deployment works. Run the scripts above and record their actual results before describing the project as production-ready.
